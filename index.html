@@ -3,61 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的奶油風旅遊足跡</title>
+    <title>我的奶油風足跡</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root { --cream-bg: #F9F7F2; --cream-card: #FFFFFF; --accent-color: #E6BAA3; --text-color: #5D574F; --border-radius: 20px; }
-        body { font-family: sans-serif; margin: 0; background: var(--cream-bg); color: var(--text-color); display: flex; flex-direction: column; height: 100vh; }
-        header { text-align: center; padding: 15px; }
-        .main-container { display: flex; flex: 1; gap: 15px; padding: 0 15px 15px 15px; overflow: hidden; }
-        .sidebar { width: 250px; background: var(--cream-card); border-radius: var(--border-radius); padding: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
-        .country-list { overflow-y: auto; margin-top: 10px; }
-        .country-item { display: flex; align-items: center; padding: 5px 0; border-bottom: 1px solid #F0EDE5; font-size: 14px; }
-        #map { flex: 1; border-radius: var(--border-radius); border: 5px solid white; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
-        .stats { font-size: 0.9rem; color: var(--accent-color); font-weight: bold; }
+        :root {
+            --cream-bg: #F9F7F2;
+            --cream-card: #FFFFFF;
+            --accent-color: #E6BAA3;
+            --text-color: #5D574F;
+        }
+        body { font-family: "Microsoft JhengHei", sans-serif; margin: 0; background: var(--cream-bg); color: var(--text-color); display: flex; flex-direction: column; height: 100vh; }
+        header { text-align: center; padding: 15px; background: white; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .main-container { display: flex; flex: 1; overflow: hidden; padding: 15px; gap: 15px; }
+        
+        /* 左側選單 */
+        .sidebar { width: 300px; background: var(--cream-card); border-radius: 20px; padding: 20px; display: flex; flex-direction: column; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .scroll-area { overflow-y: auto; flex: 1; margin-top: 10px; }
+        details { margin-bottom: 10px; border-bottom: 1px solid #EEE; padding-bottom: 5px; }
+        summary { cursor: pointer; font-weight: bold; color: var(--accent-color); padding: 5px; }
+        .option-item { display: flex; align-items: center; padding: 5px 15px; font-size: 14px; }
+        .option-item input { margin-right: 10px; accent-color: var(--accent-color); }
+        
+        /* 右側地圖 */
+        #map { flex: 1; border-radius: 20px; border: 5px solid white; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .stats { background: var(--accent-color); color: white; padding: 10px; border-radius: 10px; text-align: center; margin-bottom: 15px; }
     </style>
 </head>
 <body>
-    <header><h1>Pastel Journey 🌍</h1></header>
-    <div class="main-container">
-        <div class="sidebar">
-            <div class="stats">已點亮：<span id="country-count">0</span> 個國家</div>
-            <div class="country-list" id="country-checkboxes">載入中...</div>
-        </div>
-        <div id="map"></div>
+
+<header><h1>Pastel Travel Log 🌍</h1></header>
+
+<div class="main-container">
+    <div class="sidebar">
+        <div class="stats">已探索目的地：<span id="count">0</span></div>
+        <div class="scroll-area" id="menu">
+            </div>
     </div>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        const map = L.map('map').setView([20, 0], 2);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
-        let visited = JSON.parse(localStorage.getItem('visitedCountries')) || [];
-        let geoLayer;
-        fetch('https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson')
-            .then(res => res.json()).then(data => {
-                const names = data.features.map(f => f.properties.name).sort();
-                renderUI(names, data);
-            });
-        function renderUI(names, data) {
-            const list = document.getElementById('country-checkboxes');
-            list.innerHTML = '';
-            names.forEach(name => {
-                const div = document.createElement('div');
-                div.className = 'country-item';
-                div.innerHTML = <input type="checkbox" id="chk-${name}" ${visited.includes(name)?'checked':''} onchange="update('${name}')"><label for="chk-${name}">${name}</label>;
-                list.appendChild(div);
-            });
-            if(geoLayer) map.removeLayer(geoLayer);
-            geoLayer = L.geoJSON(data, {
-                style: f => ({ fillColor: visited.includes(f.properties.name) ? '#E6BAA3' : '#E8E4D9', weight: 1, color: 'white', fillOpacity: 0.8 }),
-                onEachFeature: (f, l) => l.on('click', () => update(f.properties.name))
-            }).addTo(map);
-            document.getElementById('country-count').innerText = visited.length;
+    <div id="map"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // 目的地數據
+    const travelData = {
+        "亞洲": ["日本", "韓國", "泰國", "新加坡", "越南", "馬來西亞"],
+        "中國城市": ["北京", "上海", "廣州", "深圳", "成都", "杭州", "西安", "重慶"],
+        "歐洲": ["英國", "法國", "德國", "意大利", "西班牙", "瑞士"],
+        "大洋洲": ["澳洲", "新西蘭"],
+        "北美洲": ["美國", "加拿大"],
+        "南美洲": ["巴西", "阿根廷"],
+        "非洲": ["埃及", "南非", "摩洛哥"]
+    };
+
+    // 經緯度座標庫 (用於在地圖上打點)
+    const coords = {
+        "日本": [36, 138], "韓國": [37, 127], "泰國": [13, 100], "新加坡": [1.3, 103], "越南": [14, 108], "馬來西亞": [4, 101],
+        "北京": [39.9, 116.4], "上海": [31.2, 121.4], "廣州": [23.1, 113.2], "深圳": [22.5, 114], "成都": [30.6, 104], "杭州": [30.2, 120.1], "西安": [34.3, 108.9], "重慶": [29.5, 106.5],
+        "英國": [55, -3], "法國": [46, 2], "德國": [51, 9], "意大利": [41, 12], "西班牙": [40, -3], "瑞士": [46, 8],
+        "澳洲": [-25, 133], "新西蘭": [-40, 174], "美國": [37, -95], "加拿大": [56, -106], "巴西": [-14, -51], "阿根廷": [-38, -63],
+        "埃及": [26, 30], "南非": [-30, 25], "摩洛哥": [31, -7]
+    };
+
+    const map = L.map('map').setView([20, 0], 2);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+    let visited = JSON.parse(localStorage.getItem('myVisited')) || [];
+    let markers = {};
+
+    // 生成左側選單
+    const menu = document.getElementById('menu');
+    for (const [zone, locations] of Object.entries(travelData)) {
+        const details = document.createElement('details');
+        details.innerHTML = <summary>${zone}</summary>;
+        locations.forEach(loc => {
+            const div = document.createElement('div');
+            div.className = 'option-item';
+            const checked = visited.includes(loc) ? 'checked' : '';
+            div.innerHTML = <input type="checkbox" id="${loc}" ${checked} onchange="toggle('${loc}')"><label for="${loc}">${loc}</label>;
+            details.appendChild(div);
+            if (visited.includes(loc)) addMarker(loc);
+        });
+        menu.appendChild(details);
+    }
+
+    function toggle(name) {
+        if (visited.includes(name)) {
+            visited = visited.filter(item => item !== name);
+            removeMarker(name);
+        } else {
+            visited.push(name);
+            addMarker(name);
         }
-        function update(name) {
-            visited = visited.includes(name) ? visited.filter(c => c !== name) : [...visited, name];
-            localStorage.setItem('visitedCountries', JSON.stringify(visited));
-            location.reload(); // 簡單直接的刷新方式
+        localStorage.setItem('myVisited', JSON.stringify(visited));
+        document.getElementById('count').innerText = visited.length;
+    }
+
+    function addMarker(name) {
+        if (coords[name]) {
+            markers[name] = L.circleMarker(coords[name], {
+                radius: 8,
+                fillColor: "#E6BAA3",
+                color: "#FFF",
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map).bindPopup(name);
         }
-    </script>
+    }
+
+    function removeMarker(name) {
+        if (markers[name]) {
+            map.removeLayer(markers[name]);
+            delete markers[name];
+        }
+    }
+
+    document.getElementById('count').innerText = visited.length;
+</script>
 </body>
 </html>
