@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的奶油風旅遊足跡</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root { --cream-bg: #F9F7F2; --cream-card: #FFFFFF; --accent-color: #E6BAA3; --text-color: #5D574F; --border-radius: 20px; }
+        body { font-family: sans-serif; margin: 0; background: var(--cream-bg); color: var(--text-color); display: flex; flex-direction: column; height: 100vh; }
+        header { text-align: center; padding: 15px; }
+        .main-container { display: flex; flex: 1; gap: 15px; padding: 0 15px 15px 15px; overflow: hidden; }
+        .sidebar { width: 250px; background: var(--cream-card); border-radius: var(--border-radius); padding: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+        .country-list { overflow-y: auto; margin-top: 10px; }
+        .country-item { display: flex; align-items: center; padding: 5px 0; border-bottom: 1px solid #F0EDE5; font-size: 14px; }
+        #map { flex: 1; border-radius: var(--border-radius); border: 5px solid white; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .stats { font-size: 0.9rem; color: var(--accent-color); font-weight: bold; }
+    </style>
+</head>
+<body>
+    <header><h1>Pastel Journey 🌍</h1></header>
+    <div class="main-container">
+        <div class="sidebar">
+            <div class="stats">已點亮：<span id="country-count">0</span> 個國家</div>
+            <div class="country-list" id="country-checkboxes">載入中...</div>
+        </div>
+        <div id="map"></div>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([20, 0], 2);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+        let visited = JSON.parse(localStorage.getItem('visitedCountries')) || [];
+        let geoLayer;
+        fetch('https://raw.githubusercontent.com/datasets/geo-boundaries-world-110m/master/countries.geojson')
+            .then(res => res.json()).then(data => {
+                const names = data.features.map(f => f.properties.name).sort();
+                renderUI(names, data);
+            });
+        function renderUI(names, data) {
+            const list = document.getElementById('country-checkboxes');
+            list.innerHTML = '';
+            names.forEach(name => {
+                const div = document.createElement('div');
+                div.className = 'country-item';
+                div.innerHTML = <input type="checkbox" id="chk-${name}" ${visited.includes(name)?'checked':''} onchange="update('${name}')"><label for="chk-${name}">${name}</label>;
+                list.appendChild(div);
+            });
+            if(geoLayer) map.removeLayer(geoLayer);
+            geoLayer = L.geoJSON(data, {
+                style: f => ({ fillColor: visited.includes(f.properties.name) ? '#E6BAA3' : '#E8E4D9', weight: 1, color: 'white', fillOpacity: 0.8 }),
+                onEachFeature: (f, l) => l.on('click', () => update(f.properties.name))
+            }).addTo(map);
+            document.getElementById('country-count').innerText = visited.length;
+        }
+        function update(name) {
+            visited = visited.includes(name) ? visited.filter(c => c !== name) : [...visited, name];
+            localStorage.setItem('visitedCountries', JSON.stringify(visited));
+            location.reload(); // 簡單直接的刷新方式
+        }
+    </script>
+</body>
+</html>
